@@ -990,6 +990,17 @@ Global flags (also configurable via env vars `CANOLIQCTL_RPC_URL`,
 --password     keystore password — required
 ```
 
+> **If every pool reads zero and `/v1/health` shows `genesisComplete: false`, check `genesisPath`
+> first.** The plugin self-bootstraps genesis from `BeginBlock` when the node's `genesis.json`
+> carries no canoLiq section, but only when `genesisPath` is set. Left empty, it skips silently
+> and the plugin runs forever uninitialized with `ProcessRewards` a no-op — a chain that looks
+> healthy while canoLiq does nothing. It now logs a one-line warning when that happens.
+>
+> The config named by `CANOLIQ_CONFIG` is read **once at plugin startup** and is not reloaded per
+> block, so fixing the JSON requires restarting the plugin process. Outside localnet, a
+> `genesisPath` that is set but unreadable or malformed now refuses to start rather than
+> deferring the error to a per-block failure.
+
 > **`--chain-id` is the node's chain id, not the canoLiq committee id.** A transaction is signed
 > for the chain it is submitted to; `fsm/transaction.go::CheckReplay` rejects a mismatch with
 > `ErrWrongChainId` before the plugin is consulted. The committee id lives in the *plugin* config
