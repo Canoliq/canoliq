@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -27,6 +29,31 @@ const canoliqRpcAddrEnv = "CANOLIQ_RPC_ADDR"
 // whatever the JSON config provides (default: disabled).
 const canoliqAlertURLEnv = "CANOLIQ_ALERT_URL"
 
+// CANOLIQ_ACTIVATION_HEIGHT overrides Config.ActivationHeight. Graduator uses
+// this for an existing committee that must activate at a coordinated future
+// height; fresh deployments use the pinned value shipped in the config file.
+const canoliqActivationHeightEnv = "CANOLIQ_ACTIVATION_HEIGHT"
+
+func applyCanoliqEnvironment(cfg *canoliq.Config, getenv func(string) string) error {
+	if addr := getenv(canoliqRpcAddrEnv); addr != "" {
+		cfg.RpcAddress = addr
+	}
+	if url := getenv(canoliqAlertURLEnv); url != "" {
+		if cfg.Alerts == nil {
+			cfg.Alerts = &canoliq.AlertConfig{}
+		}
+		cfg.Alerts.WebhookURL = url
+	}
+	if raw := getenv(canoliqActivationHeightEnv); raw != "" {
+		height, err := strconv.ParseUint(raw, 10, 64)
+		if err != nil || height == 0 {
+			return fmt.Errorf("%s must be a positive base-10 block height, got %q", canoliqActivationHeightEnv, raw)
+		}
+		cfg.ActivationHeight = height
+	}
+	return nil
+}
+
 func main() {
 	mode := os.Getenv(pluginModeEnv)
 	var canoliqPlugin *canoliq.Plugin
@@ -47,14 +74,8 @@ func main() {
 			}
 			cfg = loaded
 		}
-		if addr := os.Getenv(canoliqRpcAddrEnv); addr != "" {
-			cfg.RpcAddress = addr
-		}
-		if url := os.Getenv(canoliqAlertURLEnv); url != "" {
-			if cfg.Alerts == nil {
-				cfg.Alerts = &canoliq.AlertConfig{}
-			}
-			cfg.Alerts.WebhookURL = url
+		if err := applyCanoliqEnvironment(&cfg, os.Getenv); err != nil {
+			log.Fatal(err)
 		}
 		canoliqPlugin = canoliq.StartPlugin(cfg)
 	default:
