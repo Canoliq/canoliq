@@ -1,23 +1,68 @@
-/**
- * CSS files with the .module.css suffix will be treated as CSS modules
- * and scoped locally.
- */
-
 .heroBanner {
-  padding: 4rem 0;
-  text-align: center;
   position: relative;
   overflow: hidden;
+  padding: 5rem 0 4.5rem;
+  background: var(--canoliq-indigo);
+  color: #fff;
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
+/* the ribbon mark, oversized and bleeding off a corner, as on the brand card */
+.ribbon {
+  position: absolute;
+  top: -120px;
+  right: -110px;
+  width: 360px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.heroInner {
+  position: relative;
+  text-align: center;
+}
+
+.wordmark {
+  width: min(420px, 74vw);
+  height: auto;
+}
+
+.heroSubtitle {
+  margin: 1.5rem auto 2rem;
+  max-width: 34rem;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: #d8defb;
 }
 
 .buttons {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   align-items: center;
   justify-content: center;
+}
+
+/* The hero is indigo in both themes, so its buttons must not inherit the
+   light theme's dark-on-light text or they vanish against the ground. */
+.buttons :global(.button--secondary) {
+  --ifm-button-border-color: rgba(255, 255, 255, 0.55);
+  background: transparent;
+  color: #ffffff;
+}
+
+.buttons :global(.button--secondary:hover) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 3rem 1rem;
+  }
+  .ribbon {
+    width: 220px;
+    top: -70px;
+    right: -70px;
+    opacity: 0.35;
+  }
 }

@@ -1,0 +1,107 @@
+---
+sidebar_label: 5. Monitor a node
+sidebar_position: 5
+---
+
+# Monitor a canoLiq node
+
+**Goal.** Know at a glance whether the protocol is healthy, and recognise the
+failure modes that look healthy but are not.
+
+Everything here is read-only HTTP on port `8587`, no authentication.
+
+## The one-minute check
+
+```bash
+curl -s localhost:8587/v1/health
+curl -s localhost:8587/v1/globals
+curl -s localhost:8587/v1/pools
+```
+
+## Reading `/v1/health`
+
+```json
+{
+  "height": 120000,
+  "genesisComplete": true,
+  "chainId": 29,
+  "tvlCapBps": 3300,
+  "tvlCapStatus": "active",
+  "tvlCapUcnpyEffective": 33000000000000,
+  "canopyTotalStake": 100000000000000,
+  "tvlUtilizationBps": 1500
+}
+```
+
+`tvlCapStatus` has four values, and telling them apart matters because three of
+them can show `tvlCapUcnpyEffective: 0`:
+
+| Status | Meaning | Deposits |
+|---|---|---|
+| `uncapped` | `tvlCapBps` is 0, no ceiling | Accepted |
+| `active` | Cap computed and enforced | Accepted below the cap |
+| `awaiting-canopy-stake` | Canopy supply readable but staked is 0 | Accepted |
+| `fail-closed` | Canopy supply could not be read at all | **Rejected** |
+
+:::caution `fail-closed` rejects every deposit
+This is deliberate. A cap that cannot be computed used to return zero silently,
+which disabled the ceiling altogether. It now fails closed instead. If users
+report deposits bouncing with a cap error while the effective cap reads zero,
+this is why, and the fix is restoring the plugin's view of Canopy supply.
+:::
+
+## Reading `/v1/globals`
+
+`totalPooledCnpy` and `totalCcnpySupply` set the exchange rate. Track their
+ratio over time:
+
+- Ratio climbing slowly: healthy.
+- Ratio pinned at 1.0 for a long stretch: no rewards are being attributed.
+  Check [stake ownership](./stake-ownership.mdx) before assuming a reward bug.
+- Ratio jumping sharply: suspect attribution. Check for a
+  `reward_attribution_anomaly` alert.
+
+## Reading `/v1/pools`
+
+| Field | Watch for |
+|---|---|
+| `insurancePool` vs `insuranceTargetUcnpy` | Skim turns off automatically at target |
+| `otcBudgetAvailable` / `otcBudgetReserved` | Available near zero means new OTC locks will be rejected |
+| `buybackPool` | A sharp drop triggers `buyback_drain` |
+| `peakTvlUcnpy` | The high-water mark the insurance target is sized against |
+
+## Other endpoints
+
+| Endpoint | Use |
+|---|---|
+| `/v1/params` | Live governance parameters, the authority over any doc table |
+| `/v1/validators` | Registry used for pro-rata fee distribution |
+| `/v1/stakers` | Active CPLQ stakers with `stakedAtHeight` |
+| `/v1/graduation` | The five autonomy metrics and the composite `eligible` flag |
+| `/v1/restaking` | Per-committee policy, observed exposure, and drift |
+| `/v1/proposals`, `/v1/spends` | Governance and treasury queues |
+
+:::note Per-address endpoints block briefly
+`/v1/account/{addr}`, `/v1/vesting/{addr}`, `/v1/redemption/...`, `/v1/vote/...`
+and `/v1/buyback/{id}` are served from the EndBlock snapshot via a lazy queue.
+A request can block for up to one block, about six seconds, before answering.
+Set client timeouts accordingly and do not treat that latency as a fault.
+:::
+
+## Failure modes that look healthy
+
+| Symptom | Real cause |
+|---|---|
+| Node syncing, no canoLiq state | Plugin in stub mode. `CANOPY_PLUGIN_MODE` or `CANOLIQ_CONFIG` unset |
+| `genesisComplete: false` persisting | Genesis never ran. Check startup logs for `SafetyCheck` |
+| Flat exchange rate | Ownership set empty, or committee not subsidised |
+| All deposits rejected | `tvlCapStatus: fail-closed` |
+| Registry empty despite staked validators | `chainId` mismatch between plugin config and the real committee |
+
+## Node-level metrics
+
+The Canopy node exposes Prometheus on `9090` and pprof on `6060`. Those cover
+consensus and resource health; the canoLiq API above covers protocol health.
+Watch both.
+
+**Next:** [Set up alerts](./alerts.mdx)

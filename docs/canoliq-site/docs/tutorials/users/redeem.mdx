@@ -1,0 +1,121 @@
+---
+sidebar_label: 5. Redeem
+sidebar_position: 5
+---
+
+# Redeem cCNPY back into CNPY
+
+**Goal.** Exit the position: burn cCNPY, wait out the unbonding window, collect
+CNPY.
+
+Redeeming is **two transactions separated by a waiting period**. This trips
+people up, so it is worth stating plainly up front.
+
+## Step 1 of 2: redeem
+
+```bash
+canoliqctl redeem <your-address> 5000000
+```
+
+`5000000` uCCNPY is 5 cCNPY. At this moment the protocol:
+
+- burns your cCNPY immediately, and
+- computes what it is worth at the current rate:
+  `CNPY = cCNPY × (total_pooled + 1) ÷ (total_supply + 1)`, then
+- moves that CNPY from the pool into a pending-redemption balance, and
+- writes a `Redemption` record with an `unbondCompleteHeight`.
+
+Your cCNPY is gone from this point. The CNPY is reserved for you but not yet
+spendable, and it **stops earning** — the amount is fixed at redemption time,
+so later reward accrual does not raise it.
+
+:::note Rounding favours the pool
+The conversion floors, leaving a few uCNPY of dust behind. That is deliberate:
+it is what stops the pool from being drained to an empty, manipulable state.
+:::
+
+## Find your redemption id
+
+```bash
+curl -s localhost:8587/v1/account/<your-address>
+```
+
+```json
+{
+  "redemptions": [
+    {
+      "address": "As1OXrU+pmVwIEKm7W0x1hYFTcU=",
+      "cnpyAmount": 5000000,
+      "unbondCompleteHeight": 73
+    }
+  ]
+}
+```
+
+Note the `unbondCompleteHeight`. You also need the redemption **id** for the
+claim, and here is where people get stuck:
+
+:::caution Your first redemption has id `0`, and the field is invisible
+Ids start at zero, and the encoding omits zero-valued fields. So the first
+redemption shows **no `id` key at all**. That does not mean it has no id: it
+means the id is `0`. Claim it with `canoliqctl claim <address> 0`.
+
+Later redemptions show `"id": 1`, `"id": 2`, and so on. The same applies to
+`unstakes` and `otcLocks`.
+:::
+
+`address` inside the record is protobuf `bytes`, so it is base64, unlike the
+hex `address` at the top level.
+
+## Wait for the window
+
+The window is set by the operator's `redemptionUnstakingBlocks`, and it must be
+at least as long as Canopy's own unstaking period.
+
+| Profile | Blocks | Roughly |
+|---|---|---|
+| `localnet` | 5 | Half a minute |
+| `mainnet` | 30,240 | About 2 days at 6s blocks |
+
+Watch the height climb:
+
+```bash
+curl -s localhost:8587/v1/health | grep height
+```
+
+## Step 2 of 2: claim
+
+Once height reaches `unbondCompleteHeight`:
+
+```bash
+canoliqctl claim <your-address> 0
+```
+
+The trailing `0` is the redemption **id**, not an amount. Use the id from the
+record above; for your first redemption it is `0`.
+
+## Verify
+
+```bash
+curl -s localhost:8587/v1/account/<your-address>
+```
+
+`cnpy` has risen by the redemption amount, and the `redemptions` array is gone
+entirely, because the field is omitted when empty.
+
+## Troubleshooting
+
+Errors come back as `<command> REJECTED: <message> (code N, module canoliq)`.
+
+| Message | Code | Meaning | Fix |
+|---|---|---|---|
+| `redemption record not found` | 106 | Wrong id, or already claimed | Re-read `/v1/account/{addr}`. Remember the first id is `0` |
+| `redemption has not yet matured` | — | Height is below `unbondCompleteHeight` | Wait |
+| `insufficient cCNPY balance` | — | Redeeming more cCNPY than you hold | Check your balance |
+
+:::caution Claiming is not automatic
+Nothing sweeps matured redemptions for you. The CNPY sits in the pending
+balance until you send the claim transaction.
+:::
+
+**Next:** [Lock cCNPY for a CPLQ reward](./otc-lock.mdx)

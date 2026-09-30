@@ -1,0 +1,66 @@
+---
+sidebar_label: Network Status
+---
+
+# Network status
+
+:::caution Verify before you rely on this
+This page is maintained by hand and reflects the state recorded in
+`MAINNET-ACTIVATION-STATUS.md` as of **2026-09-23**. Deployment state moves faster
+than documentation. Confirm the live position against a node before acting on
+it.
+:::
+
+## Mainnet
+
+canoLiq graduated on Canopy mainnet on **2026-09-22** as **chain / committee id
+29**.
+
+Graduation is not the same as activation. As of the date above, the canoLiq
+plugin was **not yet producing real liquid-staking state** on either known
+committee-29 validator: both were running core Canopy only, one in plugin stub
+mode.
+
+**What that means in practice:**
+
+- Depositing real CNPY on mainnet is not yet a supported operation.
+- The protocol logic, the CLI, and the API all work; what has not happened is
+  the coordinated activation of the plugin across the committee.
+
+Activation is a one-shot consensus event. Once a node runs the plugin's genesis
+bootstrap, its `stateRoot` diverges permanently from any peer that has not.
+That is why it requires coordination across committee 29 rather than a
+per-operator config change.
+
+## Localnet and testnet
+
+Fully usable today. Every tutorial on this site is written against localnet and
+can be run end to end:
+
+```bash
+make docker/build && make docker/up-fast
+```
+
+The localnet profile uses committee id `2` and a 5-block redemption window, so
+the deposit, redeem, and claim cycle completes in under a minute.
+
+## How to check for yourself
+
+```bash
+curl -s <node>:8587/v1/health
+```
+
+`genesisComplete: true` alongside `chainId: 29` means that node is running real
+canoLiq mainnet state. `genesisComplete: false`, or a refused connection on
+`8587`, means it is not.
+
+## Known incomplete features
+
+These are shipped as partial and documented as such:
+
+| Feature | State |
+|---|---|
+| Insurance fund | Accrues and targets correctly. **Slashing-reimbursement disbursement is not implemented** |
+| Restaking | Policy and exposure reporting work. Active rebalancing is deferred; registry mutation is not exposed as a governance action |
+| OTC lock listing | Positions are readable per address only. No route lists all open positions |
+| Graduation TVL metric | The $50M threshold is a flat uCNPY placeholder pending a price oracle |

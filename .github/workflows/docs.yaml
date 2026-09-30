@@ -1,0 +1,42 @@
+name: docs
+
+on:
+  pull_request:
+    paths:
+      - 'docs/canoliq-site/**'
+      - '.github/workflows/docs.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/canoliq-site/**'
+
+jobs:
+  build:
+    name: build canoLiq docs site
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs/canoliq-site
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: docs/canoliq-site/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # docusaurus.config.ts sets onBrokenLinks: 'throw', so a dead internal
+      # link or a missing asset reference fails the build rather than shipping.
+      - name: Build
+        run: npm run build
+
+      - name: Assert no scaffold text survives
+        run: |
+          if grep -rEn "undraw|Powered by React|Hello from|Easy to Use|will go into a meta tag" src docs; then
+            echo "::error::Docusaurus scaffold placeholder text found"
+            exit 1
+          fi

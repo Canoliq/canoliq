@@ -1,0 +1,137 @@
+---
+sidebar_label: 7. Run a proposal
+sidebar_position: 7
+---
+
+# Run a governance proposal end to end
+
+**Goal.** Take a change from proposal to executed, including the multisig and
+timelock steps that catch people out.
+
+## Before you start
+
+You need at least `min_stake_to_propose` staked CPLQ, 1 CPLQ by default. Read
+the live value rather than trusting this page:
+
+```bash
+curl -s localhost:8587/v1/params
+```
+
+## Proposal types
+
+```bash
+canoliqctl proposal-create <type> <args> [--description "..."]
+```
+
+| Type | Does |
+|---|---|
+| `param-change` | Changes a governance parameter |
+| `buyback` | Executes a buyback, burning or distributing to stakers |
+| `treasury-spend` | Spends from the DAO treasury |
+| `validator-eject` | Removes a validator from the registry |
+| `emergency` | Fast-track security action |
+| `otc-program-fund` | Funds the OTC lock program budget |
+
+## 1. Create
+
+```bash
+canoliqctl proposal-create param-change <your-address> fee_bps 1000 \
+  --description "Lower the protocol fee from 12% to 10%"
+```
+
+The proposal records its tier and a stake snapshot at `creation_height`.
+
+:::caution The tier is fixed at creation
+Quorum, approval, timelock, and voting period are snapshotted when the proposal
+opens. Later parameter changes do not retroactively move the bar for a proposal
+already in flight.
+:::
+
+## 2. Campaign, then vote
+
+```bash
+curl -s localhost:8587/v1/proposals
+curl -s localhost:8587/v1/proposal/1
+canoliqctl vote <address> 1 yes
+```
+
+Only stakers whose `stakedAtHeight` is at or before `creation_height` can vote.
+Anyone who staked or topped up afterwards is ineligible on this proposal.
+
+## 3. Understand the bar
+
+Quorum counts **yes + no + abstain** against the snapshot of total staked CPLQ.
+Approval counts **yes against yes + no only**, so an abstain helps reach quorum
+without pushing the outcome either way.
+
+A proposal with no yes and no no votes fails by default, even at quorum.
+
+| Action | Quorum | Approval | Timelock |
+|---|---|---|---|
+| Fee change | 5% | 51% | 48h |
+| Treasury spend (small) | 5% | 51% | 48h |
+| Treasury spend (large) | 10% | 67% | 7d |
+| Emergency | 8% | 67% | none, 24h vote |
+| Validator ejection | 5% | 51% | 48h |
+| Protocol upgrade | 10% | 67% | 7d |
+| Autonomy graduation | 15% | 75% | 14d |
+| OTC program funding | 10% | 67% | none |
+
+An action with no matching tier falls back to the scalar parameters, where
+quorum is 33%. Do not size a campaign off that number without checking which
+applies.
+
+## 4. Wait out the voting period and timelock
+
+The default voting period is about seven days. A passed proposal then waits out
+its timelock before it can execute. The emergency tier has no timelock by
+design, and OTC program funding has none because it only moves CPLQ between two
+protocol-held balances: nothing leaves the protocol, and only a claimed lock
+reward ever enters circulation.
+
+## 5. Execute
+
+Some outcomes apply automatically; others need a transaction:
+
+```bash
+canoliqctl buyback-execute <address> <proposal-id>
+canoliqctl spend-execute <address> <proposal-id>
+```
+
+## 6. Large treasury spends need multisig
+
+Above `treasury_threshold`, a spend queues for approval rather than executing:
+
+```bash
+curl -s localhost:8587/v1/spends
+curl -s localhost:8587/v1/spend/1
+curl -s localhost:8587/v1/spend/1/approvals
+```
+
+Each signer approves:
+
+```bash
+canoliqctl multisig-approve <signer-address> 1
+```
+
+Three of five signers by default. `/v1/spend/{id}/approvals` filters to the
+**current** signer set, so an approval from a signer since removed does not
+count toward the threshold.
+
+:::danger Placeholder signers freeze the treasury permanently
+If genesis shipped with unfilled multisig signer slots, the treasury looks
+governed but approvals can never be collected, and every spend above the
+threshold is frozen forever. `SafetyCheck` refuses to start a testnet or
+mainnet profile in that state. Do not work around it.
+:::
+
+## Verify
+
+```bash
+curl -s localhost:8587/v1/proposal/1
+curl -s localhost:8587/v1/params
+```
+
+For a `param-change`, confirm the parameter actually moved. A proposal that
+passed but failed to execute raises `proposal_execution_failed`; see
+[alerts](./alerts.mdx).

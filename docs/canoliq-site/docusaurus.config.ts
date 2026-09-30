@@ -4,11 +4,18 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'canoLiq',
-  tagline: 'Liquid Staking Protocol on Canopy Network',
-  favicon: 'img/favicon.ico',
+  tagline: 'Stake CNPY. Keep it liquid.',
+  favicon: 'img/favicon.png',
 
   future: {
     v4: true,
+  },
+
+  markdown: {
+    // `future.v4: true` turns on mdx1CompatDisabledByDefault, which switches
+    // off ::: admonition parsing and renders every :::note / :::caution block
+    // on the site as literal text. Re-enable just that one compat shim.
+    mdx1Compat: {admonitions: true},
   },
 
   url: 'https://canopy-network.github.io',
@@ -18,6 +25,10 @@ const config: Config = {
   projectName: 'canopy',
 
   onBrokenLinks: 'throw',
+
+  stylesheets: [
+    {href: 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap', type: 'text/css'},
+  ],
 
   i18n: {
     defaultLocale: 'en',
@@ -50,8 +61,8 @@ const config: Config = {
     navbar: {
       title: 'canoLiq',
       logo: {
-        alt: 'canoLiq Logo',
-        src: 'img/logo.svg',
+        alt: 'canoLiq',
+        src: 'img/logo.png',
       },
       items: [
         {
@@ -74,7 +85,8 @@ const config: Config = {
           title: 'Docs',
           items: [
             {label: 'Introduction', to: '/docs/intro'},
-            {label: 'Getting Started', to: '/docs/getting-started/overview'},
+            {label: 'Tutorials', to: '/docs/tutorials/overview'},
+            {label: 'Network Status', to: '/docs/network-status'},
           ],
         },
         {

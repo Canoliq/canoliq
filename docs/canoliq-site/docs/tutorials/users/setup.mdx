@@ -1,0 +1,119 @@
+---
+sidebar_label: 1. Set up
+sidebar_position: 1
+---
+
+# Set up and fund an address
+
+**Goal.** End with an address you control, holding CNPY, and a working
+`canoliqctl` that can reach a node running the canoLiq plugin.
+
+**Time.** About 15 minutes on localnet.
+
+## Before you start
+
+- Go 1.26 or newer, and Docker with Compose.
+- A clone of the Canopy repository.
+
+## 1. Start a local network
+
+From the repository root:
+
+```bash
+make docker/build
+make docker/up-fast
+make docker/logs
+```
+
+This brings up two nodes with the canoLiq plugin enabled
+(`CANOPY_PLUGIN_MODE=canoliq`, localnet profile). Node 1 exposes:
+
+| Port | What |
+|---|---|
+| `50000` | Web wallet |
+| `50001` | Block explorer |
+| `50002` | Query RPC |
+| `50003` | Admin RPC (keystore, never expose publicly) |
+| `8587` | canoLiq plugin query API |
+
+Confirm the plugin is alive and has run its genesis bootstrap:
+
+```bash
+curl -s localhost:8587/v1/health
+```
+
+```json
+{"height":42,"genesisComplete":true,"chainId":2,"tvlCapBps":3300,"tvlCapStatus":"active"}
+```
+
+If `genesisComplete` is `false`, the plugin has not bootstrapped yet. Give it a
+few blocks. If it stays false, check `make docker/logs` for a `SafetyCheck`
+error.
+
+## 2. Build `canoliqctl`
+
+```bash
+cd plugin/go
+go build -o canoliqctl ./canoliqctl/
+```
+
+## 3. Create a key
+
+The key lives in the node's keystore, which is what `canoliqctl` signs with:
+
+```bash
+canopy admin ks-new-key --password "<your-password>"
+```
+
+Note the address it prints. Every command below uses it as `<your-address>`.
+
+## 4. Fund it with CNPY
+
+On localnet the genesis validator holds the supply, so send yourself some:
+
+```bash
+canopy admin tx-send <genesis-address> <your-address> 100000000 --password "<your-password>"
+```
+
+`100000000` uCNPY is 100 CNPY.
+
+## 5. Set your defaults
+
+`canoliqctl` needs these on every call, so export them once:
+
+```bash
+export CANOLIQCTL_PASSWORD="<your-password>"
+export CANOLIQCTL_RPC_URL="http://localhost:50002"
+export CANOLIQCTL_ADMIN_URL="http://localhost:50003"
+export CANOLIQCTL_CHAIN_ID=1
+```
+
+:::caution `--chain-id` is the node's, not canoLiq's
+`--chain-id` identifies the **node you submit to**, which on localnet is `1`.
+canoLiq's committee id is a different number (`2` on localnet, `29` on mainnet)
+and is configured in the plugin, not passed here. Setting `--chain-id 2` because
+"canoLiq is chain 2" makes every transaction fail.
+:::
+
+## Verify
+
+```bash
+curl -s localhost:8587/v1/account/<your-address>
+```
+
+```json
+{"address":"0x<your-address>","cnpy":100000000,"ccnpy":0,"cplqLiquid":0,"validatorIncentive":0}
+```
+
+You hold CNPY and no cCNPY yet. That is exactly the starting point for the next
+tutorial.
+
+## Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| `connection refused` on `8587` | The plugin is not running. Check `CANOPY_PLUGIN_MODE=canoliq` is set on the container. |
+| `--password is required` | Export `CANOLIQCTL_PASSWORD` or pass `--password`. |
+| `/v1/account/` returns `400` | The address must be 40 hex characters, no `0x` prefix. |
+
+**Next:** [Deposit CNPY and receive cCNPY](./deposit.mdx)

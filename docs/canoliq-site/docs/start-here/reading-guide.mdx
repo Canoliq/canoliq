@@ -6,47 +6,64 @@ sidebar_position: 3
 # Reading Guide
 
 :::tip In one sentence
-Pick the path that matches why you're here — newcomer, operator, or contributor — and
-follow it top to bottom.
+Pick the path that matches why you are here, and follow it top to bottom.
 :::
 
-These docs serve both people new to blockchains and engineers who already know Canopy.
-Every page opens with a plain-language summary; the sections below it keep full technical
-detail. Choose a path:
+Every page opens with a plain-language summary and keeps the technical detail
+below it. If you would rather do than read, go straight to the
+[Tutorials](../tutorials/overview.mdx).
 
-## I'm new to this — I just want to understand canoLiq
+## I hold CNPY and want it to earn
+
+1. [What Is Liquid Staking?](./what-is-liquid-staking.mdx) — the idea
+2. [The Two Tokens](../concepts/two-tokens.mdx) — cCNPY versus CPLQ
+3. [Tutorials: Users](../tutorials/users/setup.mdx) — set up, deposit, track,
+   redeem
+4. Keep the [Glossary](../concepts/glossary.mdx) open in a tab
+
+## I run a node or want to validate
 
 1. [What Is Canopy?](./what-is-canopy.mdx) — the platform canoLiq runs on
-2. [What Is Liquid Staking?](./what-is-liquid-staking.mdx) — the idea canoLiq implements
-3. [How It Works](../concepts/how-it-works.mdx) — the whole protocol, end to end, no proto needed
-4. [The Two Tokens](../concepts/two-tokens.mdx) — cCNPY vs CPLQ
-5. Keep the [Glossary](../concepts/glossary.mdx) open in a tab
+2. [Run a node](../tutorials/operators/run-a-node.mdx) — bring one up and prove
+   the plugin is live
+3. [Join the committee](../tutorials/operators/join-the-committee.mdx) and
+   [Configure stake ownership](../tutorials/operators/stake-ownership.mdx) —
+   the two steps that decide whether rewards work
+4. [Monitor](../tutorials/operators/monitoring.mdx) and
+   [Alerts](../tutorials/operators/alerts.mdx) — day-two operation
 
-## I want to run or deploy canoLiq
+:::caution Operators: do not skip stake ownership
+An unconfigured deployment attributes **zero** rewards, by design. A flat
+exchange rate is the expected result, not a bug.
+:::
 
-1. [Getting Started → Overview](../getting-started/overview.mdx) — prerequisites and layout
-2. [Building](../getting-started/building.mdx) — build and run modes (localnet, Docker)
-3. [Committee Setup](../getting-started/committee-setup.mdx) — register as a Canopy committee
-4. [API Reference](../api/endpoints.mdx) — the read-only HTTP endpoints for monitoring
+## I want to take part in governance
 
-## I want to transact or integrate
+1. [Governance Overview](../governance/overview.mdx) — how proposals work
+2. [Governance Tiers](../governance/governance-tiers.mdx) — which bar applies
+3. [CPLQ and voting](../tutorials/users/cplq-and-voting.mdx) — claim, stake,
+   vote
+4. [Run a proposal](../tutorials/operators/governance-proposal.mdx) — end to end
+
+## I am integrating canoLiq
 
 1. [Transactions → Overview](../transactions/overview.mdx) — the message catalog
-2. [Deposit & Redeem](../transactions/deposit-redeem.mdx) and
-   [CPLQ Operations](../transactions/cplq-operations.mdx) — the CLI flows
-3. [OTC Locks](../transactions/otc-locks.mdx) — term-locking cCNPY for a CPLQ reward
-4. [Transaction Reference](../transactions/reference.mdx) — every message + fee schedule
+2. [Transaction Reference](../transactions/reference.mdx) — every message and fee
+3. [API Reference](../api/endpoints.mdx) — the read-only HTTP endpoints
+4. [Protocol Reference](../proto/messages.mdx) — exact wire formats
 
 ## I want to change the code
 
-1. [Tokenomics](../tokenomics/overview.mdx) and [Governance](../governance/overview.mdx) —
-   the economic and voting rules
-2. [Advanced](../advanced/buyback.mdx) — buyback, treasury, insurance, TVL cap, restaking,
-   graduation, alerts, and [state keys](../advanced/state-keys.mdx)
-3. [Protobuf Reference](../proto/messages.mdx) — the exact message and type definitions
+Start with [Tokenomics](../tokenomics/overview.mdx) and
+[Governance](../governance/overview.mdx) for the rules, [Operations](../advanced/tvl-cap.mdx)
+for the subsystems, and [Protocol Reference](../proto/types.mdx) for the types
+and [state layout](../advanced/state-keys.mdx). The operator runbook in
+`plugin/go/canoliq/README.md` carries the deployment detail this site does not
+duplicate.
 
 :::note Source of truth
-When a doc and the code disagree, the code wins. Protocol *numbers* (fees, distributions,
-thresholds) come from the canoLiq v1.2 papers; the plugin source under
-`plugin/go/canoliq/` is authoritative for behavior.
+When a doc and the code disagree, the code wins. Protocol *numbers* (fees,
+distributions, thresholds) come from the canoLiq v1.2 papers; the plugin source
+under `plugin/go/canoliq/` is authoritative for behavior. Live parameter values
+are on `/v1/params`.
 :::

@@ -32,6 +32,12 @@ All routes are `GET` only.
 
 ## Example Responses
 
+:::note Units
+Every amount is a JSON **number** in base units: uCNPY, uCCNPY, or uCPLQ, all
+six-decimal. 1 CNPY = 1,000,000 uCNPY. The Go views use `uint64`, so amounts are
+never quoted strings.
+:::
+
 ### Health Check
 
 ```json
@@ -68,17 +74,17 @@ tvlCapUcnpyEffective` in basis points. See [TVL Cap](../advanced/tvl-cap.mdx).
 ```json
 GET /v1/pools
 {
-  "committeePool": "950000000",
-  "treasuryCnpy": "30000000",
-  "treasuryCplq": "0",
-  "buybackPool": "17000000",
-  "insurancePool": "4200000",
+  "committeePool": 950000000,
+  "treasuryCnpy": 30000000,
+  "treasuryCplq": 0,
+  "buybackPool": 17000000,
+  "insurancePool": 4200000,
   "validatorIncentives": [],
-  "peakTvlUcnpy": "1050000000",
-  "insuranceTargetUcnpy": "52500000",
+  "peakTvlUcnpy": 1050000000,
+  "insuranceTargetUcnpy": 52500000,
   "insuranceFundedBps": 800,
-  "otcBudgetAvailable": "500000000000",
-  "otcBudgetReserved": "2500000000"
+  "otcBudgetAvailable": 500000000000,
+  "otcBudgetReserved": 2500000000
 }
 ```
 
@@ -131,15 +137,15 @@ See [Restaking Policy](../advanced/restaking.mdx) for the policy schema and drif
 ```json
 GET /v1/globals
 {
-  "totalCcnpySupply": "1000000000",
-  "totalPooledCnpy": "1050000000",
-  "pendingRedemptionCnpy": "50000000",
-  "lastProcessedRewardPool": "950000000",
-  "cplqTotalSupply": "100000000000000",
-  "cplqCirculatingSupply": "25000000000000",
+  "totalCcnpySupply": 1000000000,
+  "totalPooledCnpy": 1050000000,
+  "pendingRedemptionCnpy": 50000000,
+  "lastProcessedRewardPool": 950000000,
+  "cplqTotalSupply": 100000000000000,
+  "cplqCirculatingSupply": 25000000000000,
   "nextRedemptionId": 42,
   "genesisComplete": true,
-  "totalStakedCplq": "10000000000000",
+  "totalStakedCplq": 10000000000000,
   "nextProposalId": 5,
   "nextBuybackId": 2,
   "nextSpendId": 3,
@@ -150,38 +156,83 @@ GET /v1/globals
 
 ### Account
 
+Shape follows `AccountView` in `plugin/go/canoliq/lazy_query.go`. All amounts are
+JSON **numbers** in base units (uCNPY, uCCNPY, uCPLQ), not strings.
+
 ```json
 GET /v1/account/{addr}
 {
-  "cnpy": "500000000",
-  "ccnpy": "250000000",
-  "liquidCplq": "1000000000",
-  "stakedCplq": "5000000000",
-  "stakedAtHeight": 10000,
-  "validatorIncentive": "100000",
-  "vesting": [
+  "address": "0x851e90eaef1fa27debaee2c2591503bdeec1d123",
+  "cnpy": 500000000,
+  "ccnpy": 250000000,
+  "cplqLiquid": 1000000000,
+  "cplqStake": {
+    "address": "hR6Q6u8fon3rruLCWRUDve7B0SM=",
+    "amount": 5000000000,
+    "stakedAtHeight": 10000,
+    "lockTier": 3,
+    "lockEndHeight": 5194000
+  },
+  "validatorIncentive": 100000,
+  "vestings": [
     {
-      "scheduleId": 0,
-      "totalAmount": "10000000000",
-      "cliffHeight": 50000,
-      "startHeight": 50000,
-      "endHeight": 550000,
-      "claimedAmount": "2000000000",
-      "unlockedAmount": "3000000000"
+      "schedule": {
+        "scheduleId": 0,
+        "totalAmount": 10000000000,
+        "cliffHeight": 50000,
+        "startHeight": 50000,
+        "endHeight": 550000,
+        "claimedAmount": 2000000000
+      },
+      "unlockedToDate": 3000000000,
+      "claimableNow": 1000000000,
+      "currentHeight": 200000
     }
+  ],
+  "redemptions": [
+    {"id": 1, "cnpyAmount": 25000000, "unbondCompleteHeight": 130240}
+  ],
+  "unstakes": [
+    {"id": 1, "amount": 1000000000, "matureHeight": 230800}
   ],
   "otcLocks": [
     {
       "id": 1,
-      "ccnpyAmount": "50000000000",
-      "tier": "OTC_LOCK_90D",
-      "rewardCplq": "2500000000",
+      "ccnpyAmount": 50000000000,
+      "tier": 1,
+      "rewardCplq": 2500000000,
       "startHeight": 120000,
       "matureHeight": 1416000
     }
   ]
 }
 ```
+
+Every list field and `cplqStake` are `omitempty`: they are absent, not empty, when
+the address has nothing of that kind. `cplqStake.address` is protobuf `bytes`, so
+it serialises base64 while the top-level `address` is hex with a `0x` prefix —
+request paths take bare hex, responses echo it prefixed.
+
+:::caution Enums serialise as integers, not names
+`lockTier` and `tier` come back as numbers. Map them yourself:
+
+| `lockTier` | | `tier` | |
+|---|---|---|---|
+| `0` | `LOCK_NONE` | `0` | unspecified |
+| `1` | `LOCK_3M` | `1` | `OTC_LOCK_90D` |
+| `2` | `LOCK_6M` | `2` | `OTC_LOCK_120D` |
+| `3` | `LOCK_12M` | | |
+| `4` | `LOCK_24M` | | |
+
+`LOCK_NONE` is `0`, so an unlocked stake omits `lockTier` entirely.
+:::
+
+:::caution Zero-valued fields are omitted, including `id`
+Record ids start at `0`, and zero values are dropped from the encoding. The
+first `redemptions`, `unstakes`, or `otcLocks` entry therefore carries **no
+`id` key**; its id is `0`. Do not treat a missing `id` as malformed, and do not
+default it to `1`.
+:::
 
 `otcLocks` lists the caller's open [OTC lock positions](../tokenomics/otc-lock-program.mdx) and
 is omitted entirely when there are none. `matureHeight` is the first block at which the position

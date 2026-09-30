@@ -1,0 +1,125 @@
+---
+sidebar_label: 6. Lock for a CPLQ reward
+sidebar_position: 6
+---
+
+# Lock cCNPY in the OTC program
+
+**Goal.** Commit cCNPY for a fixed term and collect a one-off CPLQ reward.
+
+:::info Not in the v1.2 papers
+The OTC lock program was specified after the v1.2 Whitepaper and Tokenomics
+paper and shipped separately. Both papers are pending an update. The parameters
+here come from the code.
+:::
+
+## The deal
+
+You lock cCNPY for a fixed number of blocks. At maturity you claim back the
+full cCNPY **plus** a CPLQ reward sized as a percentage of what you locked.
+
+| Tier | Term | Reward | Blocks |
+|---|---|---|---|
+| `90d` | 90 days | 5% of locked cCNPY | 1,296,000 |
+| `120d` | 120 days | 8% of locked cCNPY | 1,728,000 |
+
+Minimum position is 50,000 cCNPY (`50000000000` uCCNPY). The reward is paid
+from a DAO-voted treasury budget, not new supply, so it is reserved at the
+moment you lock. Operators can tune these through governance, so read the live
+values rather than trusting the table:
+
+```bash
+curl -s localhost:8587/v1/params
+```
+
+## Check the budget has room
+
+```bash
+curl -s localhost:8587/v1/pools
+```
+
+`otcBudgetAvailable` is unreserved CPLQ. `otcBudgetReserved` is already
+committed to open positions. If available is smaller than your reward would be,
+your lock is rejected: the program never promises a reward it cannot pay.
+
+## 1. Lock
+
+```bash
+canoliqctl otc-lock <your-address> 50000000000 90d
+```
+
+That locks 50,000 cCNPY at the 90-day tier, reserving 2,500 CPLQ.
+
+## 2. Find the position
+
+```bash
+curl -s localhost:8587/v1/account/<your-address>
+```
+
+```json
+{
+  "otcLocks": [
+    {
+      "id": 1,
+      "ccnpyAmount": 50000000000,
+      "tier": 1,
+      "rewardCplq": 2500000000,
+      "startHeight": 120000,
+      "matureHeight": 1416000
+    }
+  ]
+}
+```
+
+`matureHeight` is the first block at which you can claim. `tier` is an enum
+serialised as a number: `1` is the 90-day tier, `2` is 120-day.
+
+:::caution Your first lock has id `0` and shows no `id` field
+Ids start at zero and zero values are omitted from the encoding, so the first
+position carries no `id` key. Claim it with `otc-lock-claim <address> 0`.
+:::
+
+## 3. Claim at maturity
+
+```bash
+canoliqctl otc-lock-claim <your-address> 0
+```
+
+You receive the locked cCNPY back plus the CPLQ reward.
+
+## Cancelling early
+
+```bash
+canoliqctl otc-lock-cancel <your-address> 0
+```
+
+:::caution Cancelling forfeits the entire reward
+You get your cCNPY back and nothing else. The reserved CPLQ returns to the
+program budget. There is no partial or pro-rata payout for time served.
+:::
+
+## Troubleshooting
+
+| Message | Code | Meaning |
+|---|---|---|
+| `OTC lock amount below minimum position size` | 143 | Below the 50,000 cCNPY minimum |
+| `OTC lock program budget exhausted` | — | `otcBudgetAvailable` cannot cover the reward |
+| `OTC lock position not found` | — | Wrong id. The first is `0` |
+| `OTC lock position has not yet matured` | — | Claim before `matureHeight` |
+| `OTC lock position has matured; claim it instead of cancelling` | — | Cancel after maturity |
+| `insufficient cCNPY balance` | — | Locking more than you hold |
+
+## Lock versus vote-escrow
+
+Two different things share the word "lock":
+
+| | OTC lock | Vote-escrow |
+|---|---|---|
+| What you lock | cCNPY | CPLQ |
+| What you get | One-off CPLQ reward | Voting weight up to 4×, bigger reward share |
+| Term | 90 or 120 days | 3 to 24 months |
+| Paid from | DAO treasury budget | Not a payment; a multiplier |
+
+They are independent. You can do both.
+
+**Next:** [CPLQ and voting](./cplq-and-voting.mdx)

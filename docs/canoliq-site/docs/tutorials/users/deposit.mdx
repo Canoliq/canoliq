@@ -1,0 +1,102 @@
+---
+sidebar_label: 2. Deposit
+sidebar_position: 2
+---
+
+# Deposit CNPY and receive cCNPY
+
+**Goal.** Convert CNPY into cCNPY, the receipt token that earns staking rewards
+while staying transferable.
+
+**Before you start.** An address holding CNPY and a working `canoliqctl`. See
+[Set up](./setup.mdx).
+
+## What a deposit does
+
+Your CNPY moves into canoLiq's escrow pool, which backs every cCNPY in
+existence. In exchange the protocol mints cCNPY to you at the current exchange
+rate:
+
+```
+cCNPY minted = amount × (total_cCNPY_supply + 1) ÷ (total_pooled_CNPY + 1)
+```
+
+The `+ 1` on each side is a deliberate guard that keeps an empty pool from
+being manipulated. On the very first deposit into a fresh pool the rate is
+1:1. After rewards have accrued, each cCNPY is worth more than one CNPY, so
+the same deposit mints fewer cCNPY. That is the yield, and it is why there is
+nothing to claim later.
+
+## 1. Check the rate before you deposit
+
+```bash
+curl -s localhost:8587/v1/globals
+```
+
+Compare `totalPooledCnpy` against `totalCcnpySupply`. If pooled is larger,
+cCNPY has appreciated, and this is the rate your deposit is priced at.
+
+## 2. Deposit
+
+Deposit 10 CNPY, which is `10000000` uCNPY:
+
+```bash
+canoliqctl deposit <your-address> 10000000
+```
+
+`canoliqctl` submits the transaction and waits up to 45 seconds to report
+whether it was included or rejected. Pass `--no-wait` to get the hash back
+immediately instead.
+
+:::caution The fee is charged on top
+The transaction fee, `10000` uCNPY by default, is deducted **in addition to**
+the deposit. Depositing your entire balance fails with
+`insufficient CNPY balance`.
+Leave at least the fee behind.
+:::
+
+## Verify
+
+```bash
+curl -s localhost:8587/v1/account/<your-address>
+```
+
+```json
+{
+  "address": "0x<your-address>",
+  "cnpy": 89990000,
+  "ccnpy": 10000000,
+  "cplqLiquid": 0,
+  "validatorIncentive": 0
+}
+```
+
+Starting from 100 CNPY: 10 CNPY deposited, `10000` uCNPY fee, leaving
+`89990000` uCNPY and `10000000` uCCNPY minted at the opening 1:1 rate. Your
+CNPY balance falls by `10010000`, the deposit **plus** the fee.
+
+:::note The API echoes the address with a `0x` prefix
+You pass addresses to `canoliqctl` and in URLs as bare hex. The `address` field
+in a response comes back prefixed. Both refer to the same account.
+:::
+
+## Troubleshooting
+
+Errors come back as `deposit REJECTED: <message> (code N, module canoliq)`.
+
+| Message | Code | Meaning | Fix |
+|---|---|---|---|
+| `insufficient CNPY balance` | 101 | Balance is below amount plus fee | Deposit less, or fund the address |
+| `deposit would exceed the TVL cap` | 139 | The deposit would push total pooled CNPY past the cap | Wait, or deposit less. See [TVL cap](../../advanced/tvl-cap.mdx) |
+| `Canopy total stake unavailable; TVL cap cannot be enforced — deposit rejected` | — | The cap is **failing closed** | Operator issue: check `tvlCapStatus` on `/v1/health` |
+| `amount must be greater than zero` | — | Zero amount | Pass a positive base-unit amount |
+
+Codes are stable; the exact wording may change, so match on the code when you
+script against this.
+
+## What happens next
+
+You do not need to do anything for your position to grow. Rewards flow into the
+pool and lift the exchange rate.
+
+**Next:** [Track your position](./track-your-position.mdx)
