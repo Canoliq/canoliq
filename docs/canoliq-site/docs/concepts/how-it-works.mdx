@@ -114,37 +114,24 @@ eligible.
 
 ## Where canoLiq runs
 
-canoLiq is a **Go plugin** that runs alongside the Canopy FSM (Finite State Machine). The
-FSM handles consensus; the plugin owns all canoLiq-specific state and logic, talking to the
-FSM over a Unix socket using the standard `CheckTx` → `DeliverTx` → `EndBlock` lifecycle.
+canoLiq is not a separate blockchain. It runs as a **plugin** beside a Canopy
+node: Canopy handles consensus and block production, while canoLiq keeps its
+own balances, pools, and governance records in that node's state.
 
-```
-┌─────────────────────────────────────────────┐
-│                  Canopy FSM                  │
-│  ┌─────────┐  ┌──────────┐  ┌────────────┐  │
-│  │Controller│→│   BFT    │→│  Consensus  │  │
-│  └────┬────┘  └──────────┘  └──────┬─────┘  │
-│       │                            │         │
-│       └────────────┬───────────────┘         │
-│                    │ Unix socket              │
-└────────────────────┼─────────────────────────┘
-                     │
-┌────────────────────┼─────────────────────────┐
-│          canoLiq Plugin                       │
-│  ┌─────────┐  ┌──────────┐  ┌────────────┐  │
-│  │ CheckTx │→│ DeliverTx │→│  EndBlock   │  │
-│  └─────────┘  └──────────┘  └──────┬─────┘  │
-│                                    │         │
-│                          ┌─────────▼──────┐  │
-│                          │  ProcessRewards│  │
-│                          └────────────────┘  │
-└─────────────────────────────────────────────┘
-```
+Two practical consequences:
 
-- **CheckTx** — fast, stateless checks (fee paid? valid address? authorized signer?).
-- **DeliverTx** — the real work: read state, apply the message, write state.
-- **EndBlock** — periodic upkeep: sweep and split rewards, tally proposals, execute
-  matured treasury spends, evaluate alerts.
+- **Your cCNPY lives in plugin state.** A wallet or explorer that reads ordinary
+  Canopy accounts shows your CNPY but not your cCNPY. Read canoLiq balances from
+  the plugin's own API on port `8587`.
+- **canoLiq has its own CLI.** The core `canopy` command has no canoLiq
+  subcommands; protocol operations use `canoliqctl`.
+
+Because the plugin writes into the node's real state, running it is a consensus
+decision rather than a local preference. That is an operator concern, covered in
+[Run a node](../tutorials/operators/run-a-node.mdx).
+
+The socket protocol, message lifecycle, and state layout are in
+[Protocol Reference](../proto/messages.mdx).
 
 ## Keep reading
 

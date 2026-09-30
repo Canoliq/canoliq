@@ -1,0 +1,130 @@
+---
+sidebar_label: 1. Run a node
+sidebar_position: 1
+---
+
+# Run a canoLiq node
+
+**Goal.** A Canopy node with the canoLiq plugin producing real liquid-staking
+state, verified.
+
+## What you are actually starting
+
+canoLiq is **not** part of the Canopy binary. It is a separate plugin process
+that talks to the node over a Unix socket and writes into the node's state
+store. Two things follow:
+
+- The node and the plugin must both be running and correctly paired.
+- Once the plugin's genesis bootstrap runs on a node, that node's `stateRoot`
+  diverges from any peer that has not also run it.
+
+:::danger Activation is a one-shot consensus event
+Enabling the plugin on a node that is part of a live committee is not a config
+toggle you can walk back. The node writes canoLiq state into the same store
+that produces `stateRoot`. A node that bootstraps alone, without the rest of
+the committee, will get `unequal block hash` and stall forever. Coordinate
+activation across the committee before you flip it in production.
+:::
+
+## 1. Start localnet
+
+```bash
+make docker/build
+make docker/up-fast
+make docker/logs
+```
+
+This runs two nodes, both with `CANOPY_PLUGIN_MODE=canoliq` and
+`CANOLIQ_CONFIG` pointing at the localnet profile.
+
+| Service | Node 1 | Node 2 |
+|---|---|---|
+| Wallet | 50000 | 40000 |
+| Explorer | 50001 | 40001 |
+| Query RPC | 50002 | 40002 |
+| Admin RPC | 50003 | 40003 |
+| P2P | 9001 | 9002 |
+| Profiling | 6060 | 6061 |
+| Metrics | 9090 | 9091 |
+| canoLiq API | 8587 | 8588 |
+
+State persists under `.docker/volumes/node_1` and `node_2`, mounted at
+`/root/.canopy`.
+
+:::caution Never expose 50003
+The admin RPC signs with the node's keystore. It has no authentication of its
+own. Bind it to localhost and put it behind your own access control.
+:::
+
+## 2. Confirm the plugin actually bootstrapped
+
+A node can run happily with the plugin in stub mode and look healthy while
+producing no canoLiq state at all. This has bitten a real deployment. Check
+explicitly:
+
+```bash
+curl -s localhost:8587/v1/health
+```
+
+```json
+{"height":42,"genesisComplete":true,"chainId":2,"tvlCapBps":3300,"tvlCapStatus":"active"}
+```
+
+Three things to read:
+
+- `genesisComplete: true` — the bootstrap ran. If this is `false` after several
+  blocks, the plugin is not doing its job.
+- `chainId` — the canoLiq **committee** id, `2` on localnet, `29` on mainnet.
+  Not the node's chain id.
+- `tvlCapStatus` — see [Monitor a node](./monitoring.mdx) for how to read it.
+
+If port 8587 refuses connections, the plugin process is not running. Check that
+both `CANOPY_PLUGIN_MODE=canoliq` and `CANOLIQ_CONFIG` are set on the
+container. Missing env vars are the most common cause of a silently inert
+plugin.
+
+## 3. Know your config
+
+The plugin reads a profile JSON, one per environment, under
+`plugin/go/canoliq/`:
+
+```json
+{
+  "profile": "localnet",
+  "chainId": 2,
+  "dataDirPath": "/tmp/plugin",
+  "genesisPath": "/app/plugin/go/canoliq/genesis.localnet.json",
+  "rpcAddress": "0.0.0.0:8587",
+  "redemptionUnstakingBlocks": 5
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `profile` | `localnet`, `devnet`, `testnet`, `mainnet`. Governs how strict `SafetyCheck` is |
+| `chainId` | canoLiq's committee id. Wrong value means the plugin writes to the wrong committee |
+| `genesisPath` | Bucket allocations, multisig signers, validator registry |
+| `redemptionUnstakingBlocks` | Redemption window. Must be at least Canopy's `UnstakingBlocks` |
+
+## 4. Build the operator CLI
+
+```bash
+cd plugin/go
+go build -o canoliqctl ./canoliqctl/
+```
+
+## Verify end to end
+
+Run one deposit against your own node and confirm state moves:
+
+```bash
+curl -s localhost:8587/v1/globals
+canoliqctl deposit <address> 10000000
+curl -s localhost:8587/v1/globals
+```
+
+`totalPooledCnpy` and `totalCcnpySupply` both rise by `10000000`. If the
+transaction is accepted but globals do not move, the node accepted it into the
+core chain while the plugin is not processing: revisit step 2.
+
+**Next:** [Join the committee](./join-the-committee.mdx)

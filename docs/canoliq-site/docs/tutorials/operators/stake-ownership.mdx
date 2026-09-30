@@ -1,0 +1,117 @@
+---
+sidebar_label: 3. Configure stake ownership
+sidebar_position: 3
+---
+
+# Configure stake ownership
+
+**Goal.** Tell canoLiq which bonds on the committee are actually the
+protocol's, so rewards reach depositors correctly and nobody else's yield gets
+handed to them.
+
+This is the single most consequential setting an operator touches. Get it
+wrong in one direction and depositors earn nothing. Get it wrong in the other
+and the protocol mints yield against stake it does not own.
+
+## Membership and ownership are different sets
+
+Two roles share the same committee and are easy to conflate:
+
+| | Determines | Who qualifies |
+|---|---|---|
+| **Committee membership** | Who shares the 15% validator-incentive slice | Every validator staked on the committee, by stake weight |
+| **Stake ownership** | The reward `R` that flows to cCNPY holders | Only bonds whose `Validator.output` is in `stake_output_addresses` |
+
+Operators bond their **own** CNPY as collateral. That bond earns for the
+operator, and it is that bond which is slashed if they misbehave. It is not
+the protocol's, and its growth must not be credited to depositors.
+
+## Why this matters, concretely
+
+Canopy compounds committee rewards directly into validators' bonded stake.
+canoLiq infers its reward by watching that bonded stake grow. If it watches
+**every** member's bond rather than only its own, it credits depositors with
+operators' earnings.
+
+That is not hypothetical. On mainnet committee 29 it turned a 10 CNPY test
+deposit into roughly 562× in forty minutes, off an 8,235 CNPY bond canoLiq did
+not own.
+
+## The safe default
+
+`stake_output_addresses` defaults to empty. An empty set means no bond is
+canoLiq's, so `R` is zero and no rewards are attributed at all.
+
+:::note An empty set is correct, not broken
+A flat exchange rate on a fresh deployment is the system behaving properly. It
+is under-crediting truthfully rather than minting yield against stake it does
+not own. Configure ownership deliberately; do not treat zero rewards as a bug
+to be worked around.
+:::
+
+## 1. Identify the output addresses
+
+For each validator that stakes **on behalf of the protocol**, find the
+`output` address in its stake transaction. That is the address the bond pays
+to, and it is what ownership is keyed on, not the operator address.
+
+```bash
+canopy query validator <operator-address>
+```
+
+## 2. Set it
+
+Two routes:
+
+- **At genesis** — seed `stakeOutputAddresses` in the plugin genesis file
+  before the chain bootstraps.
+- **After genesis** — a `param-change` governance proposal. Changing ownership
+  is a governance act by design, because it decides whose yield depositors
+  receive.
+
+```bash
+canoliqctl proposal-create param-change <address> stake_output_addresses <value> \
+  --description "Add protocol-owned validator output address"
+```
+
+## 3. Set the plausibility clamp
+
+`max_reward_bps_per_block` bounds one block's credit to a fraction of observed
+owned stake. The default of `100` is 1%, far above any real emission rate and
+far below a runaway.
+
+The clamp does not discard the excess, it carries it forward. Nested-delegate
+rewards arrive by stake-weighted lottery, so a legitimate payout is lumpy;
+truncating would quietly destroy real yield, while carrying forward rate-limits
+a bug without confiscating anyone's money.
+
+## Verify
+
+```bash
+curl -s localhost:8587/v1/globals
+curl -s localhost:8587/v1/validators
+```
+
+Watch `totalPooledCnpy` across several blocks:
+
+| What you see | What it means |
+|---|---|
+| Flat, ownership set empty | Correct and expected. Nothing is owned yet |
+| Flat, ownership set populated | Owned bonds are not compounding. Check the committee is subsidised |
+| Rising at a plausible rate | Working |
+| Rising very fast | Ownership probably includes a bond that is not the protocol's |
+
+## The three alerts that watch this
+
+Enable [alerts](./alerts.mdx) and these fire on the failure modes above:
+
+| Alert | Severity | Fires when |
+|---|---|---|
+| `reward_attribution_anomaly` | crit | One block's credit exceeds the clamp, default 1% of owned stake |
+| `owned_stake_missing` | warn | Ownership is configured but no matching bond is on the committee |
+| `owned_bond_not_compounding` | warn | An owned bond is present but its stake is not growing |
+
+Treat `reward_attribution_anomaly` as a page, not a notification. It is the
+signal that depositors are being credited with something that is not theirs.
+
+**Next:** [Promote to testnet](./promote-to-testnet.mdx)

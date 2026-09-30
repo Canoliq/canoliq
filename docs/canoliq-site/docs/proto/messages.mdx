@@ -9,6 +9,44 @@ the reference an integrator encodes against.
 
 All messages are defined in `plugin/go/proto/canoliq.proto`.
 
+## How a message reaches state
+
+canoLiq runs as a Go plugin alongside the Canopy FSM. The FSM handles consensus;
+the plugin owns all canoLiq state and logic, and the two talk over a Unix socket
+using the standard lifecycle:
+
+```
+┌─────────────────────────────────────────────┐
+│                  Canopy FSM                  │
+│  ┌─────────┐  ┌──────────┐  ┌────────────┐  │
+│  │Controller│→│   BFT    │→│  Consensus  │  │
+│  └────┬────┘  └──────────┘  └──────┬─────┘  │
+│       │                            │         │
+│       └────────────┬───────────────┘         │
+│                    │ Unix socket              │
+└────────────────────┼─────────────────────────┘
+                     │
+┌────────────────────┼─────────────────────────┐
+│          canoLiq Plugin                       │
+│  ┌─────────┐  ┌──────────┐  ┌────────────┐  │
+│  │ CheckTx │→│ DeliverTx │→│  EndBlock   │  │
+│  └─────────┘  └──────────┘  └──────┬─────┘  │
+│                                    │         │
+│                          ┌─────────▼──────┐  │
+│                          │  ProcessRewards│  │
+│                          └────────────────┘  │
+└─────────────────────────────────────────────┘
+```
+
+- **CheckTx** — fast, stateless checks: fee paid, valid address, authorized signer.
+- **DeliverTx** — the real work: read state, apply the message, write state.
+- **EndBlock** — periodic upkeep: sweep and split rewards, tally proposals,
+  execute matured treasury spends, evaluate alerts.
+
+Plugin writes land in the same store that produces the node's `stateRoot`, so
+they are consensus-affecting, not sandboxed. canoLiq state lives under store
+prefix `{20}`; see [State Keys](../advanced/state-keys.mdx).
+
 ## Deposit & Redeem
 
 ### MessageCanoliqDeposit

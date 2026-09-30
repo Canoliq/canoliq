@@ -27,55 +27,56 @@ every term.
 - **Tiered Governance**: Different decisions clear different bars — quorum, approval, and timelock scale with risk.
 - **Self-Monitoring**: A peak-TVL-targeted insurance reserve, autonomy-graduation metrics, and optional push-alert webhooks.
 
-## Architecture
+## How it fits together
 
-canoLiq runs as a **Go plugin** alongside the Canopy FSM (Finite State Machine). It communicates via length-prefixed protobuf messages over a Unix socket, implementing the standard `CheckTx` / `DeliverTx` lifecycle.
+canoLiq is not a separate blockchain. It runs as a **plugin** alongside a
+Canopy node, sharing that node's state and security while keeping its own
+accounting.
 
-```
-┌─────────────────────────────────────────────┐
-│                  Canopy FSM                  │
-│  ┌─────────┐  ┌──────────┐  ┌────────────┐  │
-│  │Controller│→│   BFT    │→│  Consensus  │  │
-│  └────┬────┘  └──────────┘  └──────┬─────┘  │
-│       │                            │         │
-│       └────────────┬───────────────┘         │
-│                    │ Unix socket              │
-└────────────────────┼─────────────────────────┘
-                     │
-┌────────────────────┼─────────────────────────┐
-│          canoLiq Plugin                       │
-│  ┌─────────┐  ┌──────────┐  ┌────────────┐  │
-│  │ CheckTx │→│ DeliverTx │→│  EndBlock   │  │
-│  └─────────┘  └──────────┘  └──────┬─────┘  │
-│                                    │         │
-│                          ┌─────────▼──────┐  │
-│                          │  ProcessRewards│  │
-│                          └────────────────┘  │
-└─────────────────────────────────────────────┘
-```
+That has two consequences you will meet straight away:
 
-## Feature Status
+- The core `canopy` CLI has no canoLiq commands. Protocol operations use a
+  separate binary, `canoliqctl`.
+- cCNPY and CPLQ balances live in plugin state, so a wallet or explorer that
+  reads standard Canopy accounts shows your CNPY but not your cCNPY. Read
+  those from the plugin's own API on port `8587`.
 
-| Area | Status | What it covers |
-|------|--------|----------------|
-| **Liquid staking** | ✅ | Deposit/redeem, cCNPY minting, exchange-rate accrual |
-| **Tokenomics** | ✅ | 12% fee split (40/30/15/15), CPLQ genesis + vesting |
-| **Governance** | ✅ | CPLQ staking, proposals, voting, tally & execution |
-| **Tiered governance** | ✅ | Per-action quorum / approval / timelock / voting period |
-| **Vote-escrow** | ✅ | 3–24 month lock tiers, up to 4× voting + reward boost |
-| **Buyback** | ✅ | Burn or distribute-to-stakers, DAO-governed |
-| **Treasury** | ✅ | Multisig + timelock spend above a threshold |
-| **TVL cap** | ✅ | Optional, governance-tunable deposit ceiling |
-| **Insurance fund** | ✅ | Peak-TVL-targeted reserve with auto-off skim |
-| **Autonomy graduation** | ✅ | Five health metrics + eligibility tracking |
-| **HTTP query API** | ✅ | Read-only snapshot-backed endpoints |
-| **Push alerts** | ✅ | Optional webhooks for drain / concentration / TVL-drop |
-| **OTC lock program** | ✅ | 90d/120d cCNPY term locks paying a reserved CPLQ reward |
+The socket protocol and state layout are in
+[Protocol Reference](./proto/messages.mdx); you do not need them to use or
+operate the chain.
+
+## Feature status
+
+Shipped and in use:
+
+| Area | What it covers |
+|------|----------------|
+| Liquid staking | Deposit/redeem, cCNPY minting, exchange-rate accrual |
+| Tokenomics | 12% fee split (40/30/15/15), CPLQ genesis + vesting |
+| Governance | CPLQ staking, proposals, voting, tally & execution |
+| Tiered governance | Per-action quorum / approval / timelock / voting period |
+| Vote-escrow | 3–24 month lock tiers, up to 4× voting + reward boost |
+| Buyback | Burn or distribute-to-stakers, DAO-governed |
+| Treasury | Multisig + timelock spend above a threshold |
+| TVL cap | Governance-tunable deposit ceiling, fails closed |
+| HTTP query API | Read-only snapshot-backed endpoints |
+| Push alerts | Webhooks for drain, concentration, TVL drop, reward attribution |
+| OTC lock program | 90d/120d cCNPY term locks paying a reserved CPLQ reward |
+
+Partially implemented — usable, but do not assume the whole feature:
+
+| Area | What works | What does not |
+|------|------------|---------------|
+| Insurance fund | Skim, peak-TVL target, auto-off at target | Slashing-reimbursement **disbursement is not implemented** |
+| Restaking | Policy validation, exposure and drift reporting | Active rebalancing deferred; registry mutation is not a governance action |
+| Autonomy graduation | All five metrics and the eligibility flag | The TVL threshold is a flat placeholder pending a price oracle |
+
+See [Network Status](./network-status.mdx) for what is live on mainnet today.
 
 ## Quick Links
 
+- [Tutorials](./tutorials/overview.mdx) — Step-by-step walkthroughs for users and operators
 - [How It Works](./concepts/how-it-works.mdx) — Plain-language walkthrough of the whole protocol
-- [Getting Started](./getting-started/overview.mdx) — Build, run, and register as a committee
+- [Network Status](./network-status.mdx) — What is actually live right now
 - [Transaction Reference](./transactions/reference.mdx) — All supported message types
 - [API Reference](./api/endpoints.mdx) — HTTP query endpoints
-- [Implementation Plan](./implementation-plan.mdx) — Rollout tracker

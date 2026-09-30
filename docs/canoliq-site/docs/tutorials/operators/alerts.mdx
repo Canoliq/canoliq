@@ -1,0 +1,89 @@
+---
+sidebar_label: 6. Set up alerts
+sidebar_position: 6
+---
+
+# Set up alerts and respond to them
+
+**Goal.** Get paged when the protocol misbehaves, and know what to do for each
+condition.
+
+## 1. Configure the webhook
+
+Add an `alerts` block to the plugin config:
+
+```json
+{
+  "profile": "mainnet",
+  "chainId": 29,
+  "alerts": {
+    "webhookUrl": "https://hooks.example.com/services/XXX",
+    "format": "slack",
+    "authHeader": "Bearer <token>",
+    "defaultMinIntervalBlocks": 100,
+    "windowBlocks": 100
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `webhookUrl` | POST target. Empty disables delivery entirely |
+| `format` | `json` (default), `slack`, or `discord` |
+| `authHeader` | Sent as the `Authorization` header value |
+| `defaultMinIntervalBlocks` | Debounce per alert kind, default 100 blocks |
+| `minIntervalBlocks` | Per-kind override map |
+| `windowBlocks` | Tumbling window for drain and drop checks, default 100 |
+
+Delivery runs off-thread with a short timeout, so a slow or dead receiver can
+never stall EndBlock or consensus. A per-kind watermark is persisted in state,
+so a restart does not re-page you for a condition already firing, and the
+watermark clears on resolution so the next occurrence fires immediately.
+
+## 2. The payload
+
+```json
+{
+  "kind": "reward_attribution_anomaly",
+  "height": 120345,
+  "severity": "crit",
+  "message": "...",
+  "details": {}
+}
+```
+
+## 3. The conditions, and what to do
+
+### Critical
+
+| Kind | Fires when | First response |
+|---|---|---|
+| `reward_attribution_anomaly` | One block credits more than `max_reward_bps_per_block`, default 1% of owned stake | Treat as a page. Check `stake_output_addresses` contains only bonds canoLiq owns |
+| `tvl_drop` | Pooled CNPY falls more than 20% in the window | Distinguish a large legitimate redemption from a drain. Check `/v1/globals` and recent redemptions |
+| `stuck_redemption` | 10 or more matured redemptions sit unclaimed | Usually benign, users have not claimed. Persistent growth suggests claims are failing |
+| `supply_pool_desync` | Escrow and the pool totals disagree beyond 1% | Deposits are failing or accounting has drifted. Escalate |
+| `proposal_execution_failed` | A passed proposal failed to execute | Inspect the proposal. A failed execution leaves governance intent unapplied |
+
+### Warning
+
+| Kind | Fires when | First response |
+|---|---|---|
+| `owned_stake_missing` | Ownership configured but no matching bond on the committee | Ownership addresses are wrong, or the validator left the committee |
+| `owned_bond_not_compounding` | An owned bond is present but not growing | Committee likely unsubsidised, so no rewards are arriving |
+| `buyback_drain` | Buyback pool falls more than 50% in the window | Expected after an execution. Unexpected otherwise |
+| `validator_concentration` | One validator holds more than 66% of committee stake | Centralisation risk. Recruit operators or consider governance action |
+
+## The three that matter most
+
+`reward_attribution_anomaly`, `owned_stake_missing`, and
+`owned_bond_not_compounding` exist because of a real incident where the
+protocol credited depositors with stake it did not own. Together they cover
+both directions of that failure: crediting too much, and crediting nothing.
+Route the critical one to a pager, not a chat channel.
+
+## Verify
+
+Set `drainAlertBps` low on localnet, trigger a buyback execution, and confirm
+your receiver gets the POST. Test the pipe before you need it.
+
+**Next:** [Run a governance proposal](./governance-proposal.mdx)

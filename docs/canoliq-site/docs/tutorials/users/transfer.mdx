@@ -1,0 +1,57 @@
+---
+sidebar_label: 4. Transfer cCNPY
+sidebar_position: 4
+---
+
+# Send cCNPY to someone else
+
+**Goal.** Move cCNPY between accounts without unwinding the position.
+
+## Why this is interesting
+
+cCNPY is the liquid half of liquid staking. Sending it transfers the staked
+position and all its future yield in one step. The underlying CNPY never leaves
+escrow, the pool totals do not move, and the exchange rate is unaffected. The
+recipient simply starts holding a claim that was previously yours.
+
+## 1. Send
+
+```bash
+canoliqctl canoliq-transfer <your-address> <recipient-address-hex> 2500000
+```
+
+`2500000` uCCNPY is 2.5 cCNPY. The recipient address is 40 hex characters with
+no `0x` prefix.
+
+The fee is charged in **CNPY**, not cCNPY, so the sending address needs a CNPY
+balance even when it is only moving cCNPY.
+
+## Verify
+
+Both sides, before and after:
+
+```bash
+curl -s localhost:8587/v1/account/<your-address>    | grep ccnpy
+curl -s localhost:8587/v1/account/<recipient-address> | grep ccnpy
+```
+
+Your `ccnpy` falls by exactly `2500000`; theirs rises by the same. Confirm on
+`/v1/globals` that `totalCcnpySupply` and `totalPooledCnpy` are unchanged: a
+transfer is not a mint or a burn.
+
+## Troubleshooting
+
+| Message | Meaning |
+|---|---|
+| `insufficient cCNPY balance` | The sending address holds less cCNPY than requested |
+| `insufficient CNPY balance` | No CNPY to pay the fee, even though cCNPY is sufficient |
+| `address must be 20 bytes` | Malformed address, or sender and recipient are the same |
+| `400` from the API | Address is not 40 hex characters |
+
+:::note Sending to yourself
+A self-transfer is rejected at both CheckTx and delivery, so it can never zero
+your balance. The message reads `address must be 20 bytes`, which is the shared
+invalid-address error rather than a dedicated one.
+:::
+
+**Next:** [Redeem back to CNPY](./redeem.mdx)

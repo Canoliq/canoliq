@@ -1,27 +1,78 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default.
+ * canoLiq documentation theme.
+ *
+ * Palette sampled from the brand marks:
+ *   periwinkle  #9BACFC   wordmark and ribbon
+ *   deep indigo #1C1947   dark ground
+ *
+ * Periwinkle scores 2.16:1 on white, so it stays decorative in light mode and
+ * the readable primary is a darkened same-hue indigo-blue (#475FD1, 5.49:1).
+ * In dark mode periwinkle sits on the indigo ground at 7.58:1 and leads.
  */
 
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
+  --canoliq-periwinkle: #9bacfc;
+  --canoliq-indigo: #1c1947;
+  --canoliq-indigo-raised: #262252;
+  --canoliq-ribbon-from: #98a8f0;
+  --canoliq-ribbon-to: #a8b8f0;
+
+  --ifm-color-primary: #475fd1;
+  --ifm-color-primary-dark: #334dcc;
+  --ifm-color-primary-darker: #3049bf;
+  --ifm-color-primary-darkest: #283c9f;
+  --ifm-color-primary-light: #5b71d6;
+  --ifm-color-primary-lighter: #687bd9;
+  --ifm-color-primary-lightest: #8898e1;
+
+  --ifm-font-family-base: 'Poppins', 'Nunito Sans', ui-rounded, 'SF Pro Rounded',
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ifm-heading-font-weight: 600;
   --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --docusaurus-highlighted-code-line-bg: rgba(71, 95, 209, 0.12);
 }
 
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-color-primary: #9bacfc;
+  --ifm-color-primary-dark: #8297fb;
+  --ifm-color-primary-darker: #738bfb;
+  --ifm-color-primary-darkest: #4c6afa;
+  --ifm-color-primary-light: #b4c1fd;
+  --ifm-color-primary-lighter: #c3cdfd;
+  --ifm-color-primary-lightest: #eaeefe;
+
+  --ifm-background-color: var(--canoliq-indigo);
+  --ifm-background-surface-color: var(--canoliq-indigo-raised);
+  --ifm-navbar-background-color: var(--canoliq-indigo);
+  --ifm-footer-background-color: #15123a;
+  --docusaurus-highlighted-code-line-bg: rgba(155, 172, 252, 0.16);
+}
+
+/* footer.style 'dark' ships its own background; override it with brand indigo. */
+.footer--dark {
+  --ifm-footer-background-color: #15123a;
+  --ifm-footer-color: #c9d0f2;
+  --ifm-footer-link-color: #c9d0f2;
+  --ifm-footer-title-color: #ffffff;
+}
+
+/* The ribbon mark reads as a loop; echo it on the section rules. */
+.markdown h2 {
+  border-bottom: 2px solid var(--ifm-color-primary-lightest);
+  padding-bottom: 0.3rem;
+}
+
+[data-theme='dark'] .markdown h2 {
+  border-bottom-color: rgba(155, 172, 252, 0.25);
+}
+
+/* Wide tables and diagrams scroll inside themselves, never the page. */
+.markdown table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.navbar__logo {
+  height: 1.75rem;
 }

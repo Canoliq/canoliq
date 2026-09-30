@@ -1,0 +1,105 @@
+---
+sidebar_label: 2. Join the committee
+sidebar_position: 2
+---
+
+# Register as a canoLiq committee validator
+
+**Goal.** Stake CNPY on canoLiq's committee so your validator secures the
+protocol and earns a share of fees.
+
+## How committee membership works
+
+canoLiq runs as a Canopy **committee**, identified by a chain id (`2` on
+localnet, `29` on mainnet). A validator joins by listing that id in its
+`committees` set. There is no separate canoLiq registration transaction:
+committee membership is core Canopy staking.
+
+Validators bond **their own CNPY** as collateral. On slashing it is the
+operator's bond that is cut, not depositors' CNPY directly; the insurance fund
+covers shortfalls.
+
+## 1. Create or identify your validator key
+
+```bash
+canopy admin ks-new-key --password "<password>"
+```
+
+The node also needs `validator_key.json` in its data directory, generated on
+first start or via `canopy new-validator-key`.
+
+## 2. Stake onto the committee
+
+```bash
+canopy admin tx-stake \
+  <operator-address> \
+  tcp://your-node.example.org:9001 \
+  100000000000 \
+  2 \
+  <output-address> \
+  <signer-address> \
+  --password "<password>"
+```
+
+Positionally: operator address, public net address, amount in uCNPY, the
+comma-separated committee ids, the output address, and the signer.
+
+The fourth argument is the committee list. Use `2` on localnet and `29` on
+mainnet. To join canoLiq while staying on committees you already serve, list
+them all: `0,29`.
+
+:::caution The output address is not cosmetic
+`<output-address>` is where rewards are paid, and canoLiq uses it to decide
+which bonds it owns. Getting it wrong means your rewards are attributed to
+someone else, or to nobody. See
+[Configure stake ownership](./stake-ownership.mdx).
+:::
+
+Already staked and only adding the committee?
+
+```bash
+canopy admin tx-edit-stake <operator-address> <net-address> <amount> 0,29 <output> <signer>
+```
+
+`tx-edit-stake` replaces the whole committee set, so include every committee
+you intend to keep.
+
+## 3. Confirm membership
+
+```bash
+canopy query validator <operator-address>
+canopy query validators --committee=29
+```
+
+Your address should appear with the expected stake.
+
+## 4. Make sure the committee is funded
+
+A committee only pays rewards once its pool is subsidised:
+
+```bash
+canopy admin tx-subsidy <address> <amount> 29 <opcode>
+```
+
+Without this, the committee produces blocks and distributes nothing, and
+depositors see a flat exchange rate.
+
+## Verify
+
+```bash
+curl -s localhost:8587/v1/validators
+```
+
+This is the registry canoLiq uses for pro-rata fee distribution. If your
+validator is staked on the committee but missing here, the registry has not
+picked it up; registry population is partly a governance act rather than
+automatic.
+
+## Reward split
+
+Of every reward Canopy sends the committee, the protocol takes a 12% fee and
+splits it 40/30/15/15 across depositors, treasury, validators, and buyback.
+Validators share the 15% slice pro rata. The other 88% flows to cCNPY holders
+through the exchange rate.
+
+**Next:** [Configure stake ownership](./stake-ownership.mdx)

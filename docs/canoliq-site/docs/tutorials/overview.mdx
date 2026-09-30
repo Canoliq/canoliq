@@ -1,0 +1,56 @@
+---
+sidebar_label: Overview
+sidebar_position: 0
+---
+
+# Tutorials
+
+Step-by-step walkthroughs of the operations people actually perform on canoLiq.
+Every page states its goal, what you need before you start, the exact commands,
+and how to check the result.
+
+## Two tracks
+
+**[For users](./users/setup.mdx)** — holding CNPY and wanting it to earn while
+staying liquid. Deposit, track your position, transfer, redeem, lock, and vote.
+
+**[For operators](./operators/run-a-node.mdx)** — running the node and the
+plugin that carry the protocol. Bring up a node, join the committee, configure
+stake ownership, monitor, and steer governance.
+
+## How the commands work
+
+canoLiq is a Canopy **plugin**, not part of the base chain. That has two
+consequences you will meet immediately:
+
+- The core `canopy` CLI has no canoLiq subcommands. Protocol operations use a
+  separate binary, `canoliqctl`.
+- cCNPY and CPLQ balances live in plugin state. A block explorer or wallet that
+  reads standard Canopy accounts shows your CNPY but not your cCNPY. Read
+  canoLiq balances from the plugin's own HTTP API on port `8587`.
+
+:::note Using a wallet instead
+These tutorials use `canoliqctl`, because it works against any node and its
+behaviour can be verified against the source. If you use a wallet that supports
+canoLiq, the same operations are available there; the concepts, amounts, and
+waiting periods on each page apply either way.
+:::
+
+:::caution `canoliqctl` needs a node keystore
+`canoliqctl` signs by asking a node's **admin** RPC (port `50003`) to sign with a
+key it holds. It is designed for someone running their own node, and the admin
+port must never be exposed publicly. If you do not run a node, use a wallet.
+:::
+
+## Amounts
+
+Every token is six-decimal, and every command takes **base units**:
+
+| You mean | You type | Unit |
+|---|---|---|
+| 1 CNPY | `1000000` | uCNPY |
+| 1 cCNPY | `1000000` | uCCNPY |
+| 1 CPLQ | `1000000` | uCPLQ |
+
+Getting this wrong by a factor of a million is the single most common mistake.
+Every tutorial spells out the base-unit figure.

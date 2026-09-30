@@ -1,0 +1,104 @@
+---
+sidebar_label: 4. Promote to testnet
+sidebar_position: 4
+---
+
+# Promote a deployment from localnet to testnet
+
+**Goal.** Move off the permissive localnet profile without tripping over the
+safety checks, and understand what each one is protecting.
+
+## Profiles
+
+| Profile | Placeholder addresses | Redemption window | Uncapped TVL |
+|---|---|---|---|
+| `localnet` | Allowed | Any | Allowed |
+| `devnet` | Allowed | Enforced | Allowed |
+| `testnet` | Rejected | Enforced | Rejected |
+| `mainnet` | Rejected | Enforced | Rejected, and genesis height must be pinned |
+
+`localnet` short-circuits every check below. That is why a config that works
+locally can refuse to start the moment you rename the profile, which is the
+point.
+
+## The checks, and what each prevents
+
+`SafetyCheck` runs at startup and fails closed. Each error is a real failure
+mode someone has hit.
+
+**Unrecognised profile.** A typo like `mainet` used to disable every guard
+silently. Now it refuses to start.
+
+**`chainId = 0`.** The non-localnet templates ship with this unset. No
+validator declares committee 0, so the node boots happily and does nothing:
+the registry empties, the validator slice routes to a key nobody can spend
+from, and fee-pool reads hit a pool that is not canoLiq's. Set it to the real
+committee id. It is **not** the node's chain id.
+
+**Redemption window too short.** Must mirror Canopy's
+`valParams.UnstakingBlocks`, in the thousands of blocks. A tiny value would
+mature redemptions in seconds and bypass the liquidity cooldown entirely.
+
+**Unreadable or malformed `genesisPath`.** The path must resolve *inside the
+container*, not on your host. Genesis is one-shot, so this stops at startup
+rather than failing every block afterwards.
+
+**Placeholder bucket addresses.** Real allocations must not go to the template
+address. Checked per recipient, per bucket.
+
+**Placeholder multisig signers.** Worse than a placeholder recipient: the
+treasury looks governed, but approvals for a large spend can never be
+collected, so anything above the threshold is frozen permanently.
+
+**`tvlCapBps = 0`.** An uncapped genesis is a dev-profile-only convenience.
+Elsewhere, lifting the 33% cap is a governance decision, not a config default.
+
+**`activationHeight = 0` on mainnet.** With a genesis path set, the block at
+which genesis runs must be pinned, or every node picks its own height and the
+chain forks.
+
+## 1. Copy and fill the profile
+
+```bash
+cp plugin/go/canoliq/canoliq-config.testnet.json ./my-testnet.json
+```
+
+Set `chainId` to the real committee id, `redemptionUnstakingBlocks` to match
+Canopy's parameter, and `genesisPath` to a container-resolvable path.
+
+## 2. Fill genesis
+
+In `genesis.testnet.json`, replace every placeholder bucket recipient and every
+multisig signer with real addresses, and seed `stakeOutputAddresses` if the
+protocol already has bonds. See
+[Configure stake ownership](./stake-ownership.mdx).
+
+## 3. Dry-run the safety check
+
+Start the plugin and read the error, if any. `SafetyCheck` messages name the
+offending field, the profile, and what to set it to. Do not work around one by
+dropping back to `localnet`.
+
+## 4. Verify genesis matches the authoritative copy
+
+For a graduated chain, diff your genesis against the canonical file rather
+than eyeballing it. A byte-identical match is the bar.
+
+## 5. Rehearse on a disposable node first
+
+Activate the plugin on a **zero-stake sync node** before touching a real
+validator. You will see a clean bootstrap and then `unequal block hash` as the
+node stalls, because it is the only node with canoLiq state and has no stake to
+make its version canonical. That is the expected, safe outcome, and it proves
+the mechanism works without risking consensus.
+
+## Verify
+
+```bash
+curl -s localhost:8587/v1/health
+```
+
+`genesisComplete: true`, the right `chainId`, and `tvlCapStatus` not
+`fail-closed`.
+
+**Next:** [Monitor a node](./monitoring.mdx)

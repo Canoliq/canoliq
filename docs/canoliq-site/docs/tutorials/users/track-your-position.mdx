@@ -1,0 +1,88 @@
+---
+sidebar_label: 3. Track your position
+sidebar_position: 3
+---
+
+# Track your position and yield
+
+**Goal.** Read what you hold, work out what it is worth in CNPY, and see the
+yield without waiting for a statement.
+
+## The one number that matters
+
+Your cCNPY balance never changes on its own. Its **value** does. The exchange
+rate is:
+
+```
+1 cCNPY = (total_pooled_CNPY + 1) ÷ (total_cCNPY_supply + 1) CNPY
+```
+
+Rewards raise `total_pooled_CNPY` while `total_cCNPY_supply` stays put, so the
+rate climbs. This is why there is no claim step and no compounding decision to
+make.
+
+## 1. Read your balances
+
+```bash
+curl -s localhost:8587/v1/account/<your-address>
+```
+
+`ccnpy` is your position. `cnpy` is your ordinary Canopy balance, untouched by
+the protocol.
+
+## 2. Read the pool
+
+```bash
+curl -s localhost:8587/v1/globals
+```
+
+Take `totalPooledCnpy` and `totalCcnpySupply` from the response.
+
+## 3. Work out what you hold
+
+```bash
+curl -s localhost:8587/v1/globals | python3 -c '
+import json,sys
+g=json.load(sys.stdin)
+pooled,supply=g["totalPooledCnpy"],g["totalCcnpySupply"]
+rate=(pooled+1)/(supply+1)
+print(f"1 cCNPY = {rate:.8f} CNPY")
+print(f"your 10 cCNPY = {10*rate:.6f} CNPY")
+'
+```
+
+Substitute your own balance. A rate above 1.0 is accrued yield; that is the
+whole of your return.
+
+:::note Why your balance looks flat
+If you are used to a protocol that mints reward tokens, a static balance reads
+like nothing is happening. Here a static balance is correct. Check the rate,
+not the balance.
+:::
+
+## 4. Check the protocol is actually earning
+
+A rate stuck at exactly 1.0 over many blocks means no rewards are arriving.
+That is usually not your problem to fix, but it is worth recognising:
+
+```bash
+curl -s localhost:8587/v1/health
+```
+
+Then ask an operator to confirm stake ownership is configured. canoLiq only
+credits rewards from bonds it owns, and an unconfigured deployment attributes
+nothing by design. See
+[Configure stake ownership](../operators/stake-ownership.mdx).
+
+## What you can read
+
+| Endpoint | Tells you |
+|---|---|
+| `/v1/account/{addr}` | Your cCNPY, CPLQ, stake, redemptions, unstakes, OTC locks |
+| `/v1/globals` | Pool totals that set the exchange rate |
+| `/v1/pools` | Treasury, buyback, insurance, and OTC budget balances |
+| `/v1/health` | Height, TVL cap status, whether genesis has run |
+
+All amounts are base units. Divide by 1,000,000 for whole tokens.
+
+**Next:** [Transfer cCNPY](./transfer.mdx)

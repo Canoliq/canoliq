@@ -1,8 +1,14 @@
 import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
+/**
+ * Ordered by audience, not by subsystem. Users and operators come first and
+ * meet tutorials before reference; protocol internals are deliberately walled
+ * off at the bottom so the default reading path never lands in raw protobuf.
+ */
 const sidebars: SidebarsConfig = {
   canoliqSidebar: [
     'intro',
+    'network-status',
     {
       type: 'category',
       label: 'Start Here',
@@ -25,12 +31,30 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Getting Started',
-      link: {type: 'doc', id: 'getting-started/overview'},
+      label: 'Tutorials: Users',
+      link: {type: 'doc', id: 'tutorials/overview'},
       items: [
-        'getting-started/overview',
-        'getting-started/building',
-        'getting-started/committee-setup',
+        'tutorials/users/setup',
+        'tutorials/users/deposit',
+        'tutorials/users/track-your-position',
+        'tutorials/users/transfer',
+        'tutorials/users/redeem',
+        'tutorials/users/otc-lock',
+        'tutorials/users/cplq-and-voting',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Tutorials: Operators',
+      link: {type: 'doc', id: 'tutorials/operators/run-a-node'},
+      items: [
+        'tutorials/operators/run-a-node',
+        'tutorials/operators/join-the-committee',
+        'tutorials/operators/stake-ownership',
+        'tutorials/operators/promote-to-testnet',
+        'tutorials/operators/monitoring',
+        'tutorials/operators/alerts',
+        'tutorials/operators/governance-proposal',
       ],
     },
     {
@@ -47,17 +71,6 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Transactions',
-      link: {type: 'doc', id: 'transactions/overview'},
-      items: [
-        'transactions/deposit-redeem',
-        'transactions/cplq-operations',
-        'transactions/otc-locks',
-        'transactions/reference',
-      ],
-    },
-    {
-      type: 'category',
       label: 'Governance',
       link: {type: 'doc', id: 'governance/overview'},
       items: [
@@ -69,39 +82,47 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Advanced',
-      link: {type: 'generated-index'},
+      label: 'Operations',
+      link: {type: 'doc', id: 'advanced/tvl-cap'},
       items: [
-        'advanced/buyback',
-        'advanced/treasury',
-        'advanced/insurance',
         'advanced/tvl-cap',
+        'advanced/insurance',
         'advanced/restaking',
+        'advanced/alerts',
+        'advanced/treasury',
+        'advanced/buyback',
         'advanced/otc-lock-accounting',
         'advanced/autonomy-graduation',
-        'advanced/alerts',
-        'advanced/state-keys',
       ],
     },
     {
       type: 'category',
-      label: 'API Reference',
-      link: {type: 'doc', id: 'api/overview'},
+      label: 'Reference',
+      link: {type: 'doc', id: 'transactions/overview'},
       items: [
+        'transactions/overview',
+        'transactions/reference',
+        'transactions/deposit-redeem',
+        'transactions/cplq-operations',
+        'transactions/otc-locks',
+        'getting-started/overview',
+        'getting-started/building',
+        'getting-started/committee-setup',
         'api/overview',
         'api/endpoints',
       ],
     },
     {
       type: 'category',
-      label: 'Protobuf Reference',
-      link: {type: 'generated-index'},
+      label: 'Protocol Reference',
+      link: {type: 'generated-index', description:
+        'Wire formats and state layout. You do not need any of this to use or operate canoLiq — it is here for people reading or extending the plugin source.'},
       items: [
         'proto/messages',
         'proto/types',
+        'advanced/state-keys',
       ],
     },
-    'implementation-plan',
   ],
 };
 
