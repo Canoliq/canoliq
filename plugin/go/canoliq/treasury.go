@@ -312,6 +312,10 @@ func (c *Canoliq) applySpend(spend *contract.TreasurySpend) *contract.PluginErro
 		if err != nil {
 			return err
 		}
+		// loadAccount only unmarshals the stored value, so a new recipient has
+		// an empty Address; set it or the credit is mis-indexed under the empty
+		// address (same bug class as deliverMessageSend).
+		recip.Address = spend.Payload.Recipient
 		recip.Amount += spend.Payload.Amount
 		recipBz, e := contract.Marshal(recip)
 		if e != nil {

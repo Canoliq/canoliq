@@ -481,6 +481,11 @@ func (c *Canoliq) deliverMessageSend(msg *contract.MessageSend, fee uint64) *con
 	if string(fromKey) == string(toKey) {
 		to = from
 	}
+	// The indexer attributes a balance by the Account.Address stored in the
+	// record, not the state key. A new recipient starts with an empty Address,
+	// so set it or the credit is indexed under the empty address.
+	from.Address = msg.FromAddress
+	to.Address = msg.ToAddress
 	from.Amount -= deduct
 	feePool.Amount += fee
 	to.Amount += msg.Amount
