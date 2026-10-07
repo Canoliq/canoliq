@@ -13,5 +13,19 @@
   "consensusPreset": 1,
   "initialMintPerBlock": 80000000,
   "blocksPerHalvening": 3150000,
-  "pluginRpcPort": 8587
+  "pluginRpcPort": 8587,
+  "pluginLifecycle": {
+    "mode": "canoliq",
+    "environment": {
+      "CANOLIQ_CONFIG": "/app/plugin/go/canoliq/canoliq-config.mainnet.json",
+      "CANOLIQ_RPC_ADDR": ":8587"
+    },
+    "publicRpc": true,
+    "readiness": {
+      "path": "/v1/health",
+      "matches": {
+        "genesisComplete": true
+      }
+    }
+  }
 }
