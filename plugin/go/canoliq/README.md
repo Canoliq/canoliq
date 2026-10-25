@@ -16,6 +16,19 @@ generated in `contract` package and runs its own FSM connection.
 > the `.mdx` sources directly). This README is the operator/developer runbook.
 > Remaining roadmap work is tracked in `docs/plans/canoliq-release-plan.md`.
 
+## Graduator lifecycle
+
+`plugin/go/chain.json` declares canoLiq's generic Graduator lifecycle contract:
+the `canoliq` mode, mainnet config path, port 8587 query surface, and the
+`genesisComplete: true` readiness condition. A fresh graduation uses
+`activationHeight: 1`, ensuring every validator applies the plugin genesis at
+the same historical block when syncing.
+
+For an already-running committee, never reuse height 1 and never activate one
+validator independently. Set `CANOLIQ_ACTIVATION_HEIGHT` to the same agreed
+future block on every validator, then restart them before that height. The
+environment override must be a positive base-10 block height.
+
 ## Deployment profiles
 
 canoLiq ships two pre-built deployment profiles. The plugin's
