@@ -25,10 +25,7 @@ import (
 // checks apply on mainnet. It must be above the height at which every
 // committee-29 node runs this release; pick it with margin for
 // pluginAutoUpdate.
-//
-// PLACEHOLDER: the release manager sets the final height before the release
-// PR (development -> main) is opened.
-const MainnetSafetyChecksHeight uint64 = 360_000
+const MainnetSafetyChecksHeight uint64 = 351_500
 
 // MaxTxFeeUcnpy bounds the fee of a single canoLiq transaction once the
 // checks are active: 1,000,000 CNPY, orders of magnitude above any configured
