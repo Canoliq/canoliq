@@ -8,8 +8,9 @@ import (
 )
 
 // governancelimits.go adds a governance timelock, quorum and voting-period
-// floors, and state-growth limits, all from MainnetSafetyChecksHeight
-// (safetychecks.go), so every earlier mainnet block replays unchanged.
+// floors, and state-growth limits, all from MainnetGovernanceLimitsHeight, so
+// every earlier mainnet block replays unchanged. It is released separately
+// from the amount/fee checks in safetychecks.go and has its own height.
 //
 // Two gates are used. The governance rules (timelock, floors, sensitive
 // parameters, proposal caps, minimum stake) use governanceLimitsActive, which
@@ -17,7 +18,8 @@ import (
 // 20-block voting windows and 5-block timelocks for fast iteration, and the
 // floors would make that impossible. The bookkeeping changes (request height,
 // vote cleanup, boosted-stake running total, vesting guard, treasury re-read)
-// do not change any policy and use safetyChecksActive, i.e. every profile.
+// do not change any policy and use governanceBookkeepingActive: every
+// profile, and mainnet from the same height.
 //
 // Parameter changes. A passed ProposalParamChange used to be saved in the
 // block that tallied it. From activation it is queued and applied once the
@@ -63,10 +65,28 @@ const (
 	MinCplqStakeUcplq uint64 = 1_000_000
 )
 
+// MainnetGovernanceLimitsHeight is the committee-29 block from which every
+// change in this file applies on mainnet. It must be above the height at which
+// every committee-29 node runs this release; pick it with margin for
+// pluginAutoUpdate.
+//
+// PLACEHOLDER: the release manager sets the final height before the release
+// PR (development -> main) is opened.
+const MainnetGovernanceLimitsHeight uint64 = 400_000
+
+// governanceBookkeepingActive reports whether the bookkeeping changes in this
+// file apply at `height`. Other profiles have them from genesis.
+func (c *Canoliq) governanceBookkeepingActive(height uint64) bool {
+	if c.Config.Profile != ProfileMainnet {
+		return true
+	}
+	return height >= MainnetGovernanceLimitsHeight
+}
+
 // governanceLimitsActive reports whether the governance rules in this file
 // apply at `height`. Mainnet only; see the file comment.
 func (c *Canoliq) governanceLimitsActive(height uint64) bool {
-	return c.Config.Profile == ProfileMainnet && height >= MainnetSafetyChecksHeight
+	return c.Config.Profile == ProfileMainnet && height >= MainnetGovernanceLimitsHeight
 }
 
 // ---- request height -------------------------------------------------------
@@ -80,7 +100,7 @@ func (c *Canoliq) currentHeight() uint64 {
 	if c == nil || c.plugin == nil {
 		return 0
 	}
-	if c.reqHeight > 0 && c.safetyChecksActive(c.reqHeight) {
+	if c.reqHeight > 0 && c.governanceBookkeepingActive(c.reqHeight) {
 		return c.reqHeight
 	}
 	return c.plugin.CurrentHeight()
@@ -408,7 +428,7 @@ func (c *Canoliq) applyPendingParamChanges(height uint64) *contract.PluginError 
 // voteDeletesFor returns delete ops for every vote record of a proposal once
 // active; before activation votes were left in place.
 func (c *Canoliq) voteDeletesFor(proposalID uint64) ([]*contract.PluginDeleteOp, *contract.PluginError) {
-	if !c.safetyChecksActive(c.currentHeight()) {
+	if !c.governanceBookkeepingActive(c.currentHeight()) {
 		return nil, nil
 	}
 	q := qid()
@@ -447,7 +467,7 @@ func (c *Canoliq) loadBoostedStakeTotal() (uint64, *contract.PluginError) {
 // boostedTotalUpdate returns the set op that moves the running total from a
 // staker's old weight to its new one, or nil before activation.
 func (c *Canoliq) boostedTotalUpdate(oldWeight, newWeight uint64) (*contract.PluginSetOp, *contract.PluginError) {
-	if !c.safetyChecksActive(c.currentHeight()) {
+	if !c.governanceBookkeepingActive(c.currentHeight()) {
 		return nil, nil
 	}
 	total, err := c.loadBoostedStakeTotal()
@@ -468,7 +488,7 @@ func (c *Canoliq) boostedTotalUpdate(oldWeight, newWeight uint64) (*contract.Plu
 // snapshotBoostedTotal is the quorum denominator for a new proposal, plus the
 // set op that persists the running total when it was just computed.
 func (c *Canoliq) snapshotBoostedTotal() (uint64, *contract.PluginSetOp, *contract.PluginError) {
-	if !c.safetyChecksActive(c.currentHeight()) {
+	if !c.governanceBookkeepingActive(c.currentHeight()) {
 		total, err := c.boostedStakeTotal()
 		return total, nil, err
 	}
@@ -487,7 +507,7 @@ func (c *Canoliq) snapshotBoostedTotal() (uint64, *contract.PluginSetOp, *contra
 // unlockedAmountAt is unlockedAmount with a guard, once active, for a
 // schedule whose cliff precedes its start: nothing unlocks before the start.
 func (c *Canoliq) unlockedAmountAt(s *contract.VestingSchedule, height uint64) uint64 {
-	if s != nil && height < s.StartHeight && c.safetyChecksActive(c.currentHeight()) {
+	if s != nil && height < s.StartHeight && c.governanceBookkeepingActive(c.currentHeight()) {
 		return 0
 	}
 	return unlockedAmount(s, height)

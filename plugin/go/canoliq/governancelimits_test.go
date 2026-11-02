@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	govBefore = MainnetSafetyChecksHeight - 1_000
-	govAfter  = MainnetSafetyChecksHeight
+	govBefore = MainnetGovernanceLimitsHeight - 1_000
+	govAfter  = MainnetGovernanceLimitsHeight
 )
 
 // newMainnetGov returns a mainnet-profile Canoliq at `height` with default
@@ -416,17 +416,17 @@ func TestTreasurySpendToCallerKeepsPayout(t *testing.T) {
 }
 
 func TestHandlersUseRequestHeightFromActivation(t *testing.T) {
-	c, _ := newMainnetAt(t, MainnetSafetyChecksHeight+50)
-	c.reqHeight = MainnetSafetyChecksHeight - 1
-	if got := c.currentHeight(); got != MainnetSafetyChecksHeight+50 {
+	c, _ := newMainnetAt(t, MainnetGovernanceLimitsHeight+50)
+	c.reqHeight = MainnetGovernanceLimitsHeight - 1
+	if got := c.currentHeight(); got != MainnetGovernanceLimitsHeight+50 {
 		t.Fatalf("before activation: got %d, want the plugin height", got)
 	}
-	c.reqHeight = MainnetSafetyChecksHeight + 10
-	if got := c.currentHeight(); got != MainnetSafetyChecksHeight+10 {
+	c.reqHeight = MainnetGovernanceLimitsHeight + 10
+	if got := c.currentHeight(); got != MainnetGovernanceLimitsHeight+10 {
 		t.Fatalf("from activation: got %d, want the request height", got)
 	}
 	c.reqHeight = 0
-	if got := c.currentHeight(); got != MainnetSafetyChecksHeight+50 {
+	if got := c.currentHeight(); got != MainnetGovernanceLimitsHeight+50 {
 		t.Fatalf("no request height: got %d", got)
 	}
 }

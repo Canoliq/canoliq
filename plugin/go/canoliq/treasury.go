@@ -183,7 +183,7 @@ func (c *Canoliq) DeliverMessageDAOTreasurySpend(msg *contract.MessageDAOTreasur
 	// applySpend may have credited the caller's own account. From activation,
 	// re-read it so the fee debit below builds on that write instead of
 	// overwriting it with the balance read before the spend.
-	if c.safetyChecksActive(c.currentHeight()) {
+	if c.governanceBookkeepingActive(c.currentHeight()) {
 		fresh, err := c.loadAccount(cnpyKey)
 		if err != nil {
 			return &contract.PluginDeliverResponse{Error: err}
