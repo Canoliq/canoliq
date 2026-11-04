@@ -69,10 +69,7 @@ const (
 // change in this file applies on mainnet. It must be above the height at which
 // every committee-29 node runs this release; pick it with margin for
 // pluginAutoUpdate.
-//
-// PLACEHOLDER: the release manager sets the final height before the release
-// PR (development -> main) is opened.
-const MainnetGovernanceLimitsHeight uint64 = 400_000
+const MainnetGovernanceLimitsHeight uint64 = 367_800
 
 // governanceBookkeepingActive reports whether the bookkeeping changes in this
 // file apply at `height`. Other profiles have them from genesis.
